@@ -1,0 +1,34 @@
+.bootstrap_chat {
+  background-color: #0e4065;
+  min-height: 100vh;
+}
+
+.text-small {
+  font-size: 0.9rem;
+}
+
+.messages-box, .chat-box {
+  height: 510px;
+  overflow-y: scroll;
+}
+
+#game {
+  /*background-color: #333;*/
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+#box1 {
+  background-size: 100%;
+  background-position: center;
+  /*width: 2560px;*/
+  /*height: 2048px;*/
+  position: absolute;
+}
+
+#game_col {
+  position: absolute;
+}
+

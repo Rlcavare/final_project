@@ -1,6 +1,20 @@
 const express = require('express');
 let app = express();
 
+const { MongoClient, ServerApiVersion } = require('mongodb');
+
+// variables
+let debug_mode = false;
+let _db;
+const uri = "mongodb+srv://rob:1qaz2wsx3edc@cluster0.mur1c.mongodb.net/pixel_game";
+const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
+
+
+
+
+
+
+
 /* Use EJS for templates (in the "views" folder) */
 app.set('view engine', 'ejs');
 
@@ -57,6 +71,150 @@ app.use('/', require('./cookies.js'));
 app.use('/', require('./social.js'));
 app.use('/data', require('./data.js'));
 app.use('/server', require('./ajaxserver.js'));
-app.use('/pixel', require('./pixel.js'));
+// app.use('/pixel', require('./pixel.js'));
+
+function setup() {
+    MongoClient.connect(uri, (err, database) => {
+      if(err) {
+        return console.log(err);
+      }
+      // db = database;
+      // start the express web server listening on 8080
+      getDb()
+      // app.listen(8080, () => {
+      //   console.log('listening on 8080');
+      // });
+    });
+  }
+  
+  setup()
+  
+  
+  
+  // serve the homepage
+  app.get('/pixel', (req, res) => {
+    res.sendFile('/index.html');
+  });
+  
+  
+  // Get chats from database
+  app.get('/chat', async (req, res) => {
+    const client = new MongoClient(uri);
+    try {
+      // Connect to the MongoDB cluster
+      await client.connect();
+      const database = client.db("pixel_game");
+      const chat = database.collection("chat");
+      let result = await chat.find({}).toArray()
+      res.send(result);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      await client.close();
+    }
+  });
+  
+  // Update grid information
+  app.post('/chat', async (req, res) => {
+    let data = '';
+    req.on('data', chunk => {
+      data += chunk;
+    });
+    req.on('end', async () => {
+      let json = JSON.parse(data);
+      let payload = {
+        _id: Date.now(),
+        time: new Date(),
+        msg: json["msg"],
+        uuid: json["uuid"]
+      }
+      logger(JSON.stringify(payload));
+      logger("Updating database");
+      const grid = await getDbCollection("chat");
+      await updateDbCollection(grid, payload, req, res);
+  
+    });
+  });
+  
+  
+  // <------ GRID CODE ------>
+  // Get grid information
+  app.get('/grid', async (req, res) => {
+    try {
+      const grid = await getDbCollection("grid")
+      let result = await grid.find({}).toArray()
+      res.send(result);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      await client.close();
+    }
+  });
+  
+  // Update grid information
+  app.post('/grid', async (req, res) => {
+    let data = '';
+    req.on('data', chunk => {
+      data += chunk;
+    });
+    req.on('end', async () => {
+      let json = JSON.parse(data);
+      let payload = {
+        _id: json["_id"],
+        color: json["color"],
+        time: new Date(),
+        uuid: json["uuid"]
+      }
+      logger(JSON.stringify(payload));
+      logger("Updating database");
+      const grid = await getDbCollection("grid");
+      await updateDbCollection(grid, payload, req, res);
+  
+    });
+  });
+  
+  // <------- HELPER FUNCTIONS ------->
+  // This function will return a collection database object
+  
+  async function getDb() {
+    if (!_db)
+    {
+      const client = new MongoClient(uri);
+      await client.connect();
+      _db = await client.db("pixel_game");
+      logger(_db)
+    }
+    return _db;
+  }
+  
+  
+  async function getDbCollection(collection){
+  
+    const database = await getDb();
+    return database.collection(collection);
+  }
+  
+  // This function will update or create a new entry in a collection
+  async function updateDbCollection(collection, payload, req, res){
+    await collection.findOneAndUpdate({_id: payload._id},
+        {"$set" : payload},
+        {upsert: true},
+        function (err,result) {
+          if (err) {
+            console.log(err); return res.sendStatus(500);
+          } else {
+            res.sendStatus(201)
+          }
+        });
+  }
+  
+  // This function will print text to console if debugging mode is true
+  function logger(str){
+    if (debug_mode) {
+      console.log("DEBUG: " + str);
+    }
+  }
+  
+
 
 let server = app.listen(8079, function () {});
